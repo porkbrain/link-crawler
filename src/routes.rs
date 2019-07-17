@@ -1,9 +1,9 @@
 use rocket::State;
-use serde::Serialize;
 use rocket::http::Status;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Sender;
 use rocket_contrib::json::Json;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 type Database = Arc<Mutex<HashMap<String, HashSet<String>>>>;
@@ -42,12 +42,12 @@ pub fn count(cache: State<Database>, domain: String) -> Result<Json<UrlCount>, S
   }
 }
 
-#[post("/", data = "<url>")]
-pub fn crawl(producer: State<Mutex<Sender<String>>>, url: String) -> Status {
+#[post("/", format = "application/json", data = "<req>")]
+pub fn crawl(producer: State<Mutex<Sender<String>>>, req: Json<UrlToCrawl>) -> Status {
   // TODO: Find a better way of creating a channel without using mutex.
   match producer.lock() {
     Ok(producer) => {
-      match producer.send(url.clone()) {
+      match producer.send(req.url.clone()) {
         Ok(_) => Status::Accepted,
         Err(_) => Status::ServiceUnavailable,
       }
@@ -60,4 +60,10 @@ pub fn crawl(producer: State<Mutex<Sender<String>>>, url: String) -> Status {
 pub struct UrlCount {
   /// How many unique urls has the crawler found for given domain.
   count: usize
+}
+
+#[derive(Deserialize)]
+pub struct UrlToCrawl {
+  /// A url which should the crawler visit.
+  url: String
 }

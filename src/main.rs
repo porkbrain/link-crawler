@@ -4,6 +4,8 @@ extern crate url;
 extern crate serde;
 #[macro_use]
 extern crate rocket;
+extern crate select;
+extern crate reqwest;
 extern crate rocket_contrib;
 
 mod routes;

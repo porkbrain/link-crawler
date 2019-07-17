@@ -26,42 +26,72 @@ pub fn listen(db: Database, consumer: Receiver<String>) {
         match Url::parse(&message.unwrap()).ok().filter(|url| url.has_host()) {
             Some(url) => {
                 // Unwrap here is safe as we have filtered `has_host` in match statement.
-                scrape_urls(&db, url.as_str(), url.host_str().unwrap());
+                scrape_urls(&db, url.as_str().to_string(), url.host_str().unwrap());
             },
             None => continue,
         }
     }
 }
 
-fn scrape_urls(master: &Database, url: &str, host: &str) {
-    println!("[{}] Scraping {}", host, url);
+/// Scrapes given url and finds all link that are of the same hostname. It then visits the links
+/// looking for move unique links. Once it drains all usable links on given hostname, it stops 
+/// crawling.
+fn scrape_urls(master: &Database, url: String, host: &str) {
+    let mut queue: Vec<String> = vec!(url);
 
-    let scraped: HashSet<String> = HashSet::new();
-
-    let _diff: Vec<String> = {
-        let mut map = master.lock().unwrap();
-
-        match map.get_mut(host) {
-            Some(set) => {
-                let difference: Vec<String> = scraped.difference(set).cloned().collect();
-                let mut items: Vec<String> = Vec::new();
-
-                for url in difference {
-                    (*set).insert(url.clone());
-                    items.push(url.to_string());
-                }
-
-                items
-            },
-            None => {
-                let items: Vec<String> = scraped.iter().cloned().collect();
-
-                map.insert(host.to_string(), scraped);
-
-                items
-            }
+    loop {
+        if queue.len() == 0 {
+            break;
         }
-    };
+
+        // Unwrap is safe here as we just checked for the length.
+        let scraped_urls = crawl(host, queue.pop().unwrap()); 
+
+        // Appends all unique urls found on given site. 
+        queue.append(
+            &mut insert_unique_urls(master, scraped_urls, host)
+        );
+    }
+}
+
+fn crawl(host: &str, url: String) -> HashSet<String> {
+    HashSet::new()
+}
+
+/// Compares the set of scraped urls against the database, inserts the new ones and returns them.
+fn insert_unique_urls(master: &Database, mut scraped_urls: HashSet<String>, host: &str) -> Vec<String> {
+    // Aquires the database lock.
+    // TODO: Error handling the mutex.
+    let mut map = master.lock().unwrap();
+
+    // Gets the HashSet associated with given domain.
+    match map.get_mut(host) {
+        // If the domain has been already crawled, adds new items to the set.
+        Some(set) => {
+            let mut unique_urls: Vec<String> = Vec::new();
+
+            // For each newly scraped url, tries to insert it into the HashSet.
+            // If the url hasn't been in the set prior, pushes it into unique
+            // urls collections to be crawled in next cycle.
+            for url in scraped_urls.drain() {
+                if (*set).insert(url.clone()) {
+                    unique_urls.push(url);
+                }
+            }
+
+            unique_urls
+        },
+        // If the domain hasn't been crawled yet, all scraped urls are unique.
+        None => {
+            // Copies the urls so that they can be crawled in next cycle.
+            let items: Vec<String> = scraped_urls.iter().cloned().collect();
+
+            // Inserts the HashSet into the database.
+            map.insert(host.to_string(), scraped_urls);
+
+            items
+        }
+    }
 }
 
 

@@ -1,7 +1,10 @@
 use url::Url;
 use std::sync::{Arc, Mutex};
+use select::predicate::Name;
 use std::sync::mpsc::Receiver;
+use select::document::Document;
 use std::collections::{HashMap, HashSet};
+
 
 type Database = Arc<Mutex<HashMap<String, HashSet<String>>>>;
 
@@ -15,7 +18,7 @@ pub fn listen(db: Database, consumer: Receiver<String>) {
         let message = consumer.recv();
 
         if message.is_err() {
-            // Prints our the error and awaits next message.
+            // Prints out the error and awaits next message.
             println!("[Scraper] Error during message receiving: {:?}", message.err().unwrap());
 
             continue;
@@ -45,17 +48,61 @@ fn scrape_urls(master: &Database, url: String, host: &str) {
         }
 
         // Unwrap is safe here as we just checked for the length.
-        let scraped_urls = crawl(host, queue.pop().unwrap()); 
+        if let Some(scraped_urls) = crawl(host, queue.pop().unwrap()) {
+            // Appends all unique urls found on given site. 
+            queue.append(
+                &mut insert_unique_urls(master, scraped_urls, host)
+            );
+        } 
 
-        // Appends all unique urls found on given site. 
-        queue.append(
-            &mut insert_unique_urls(master, scraped_urls, host)
-        );
     }
 }
 
-fn crawl(host: &str, url: String) -> HashSet<String> {
-    HashSet::new()
+/// Scrapes all urls on given website and filters out the ones not belonging to given
+/// host name. HashSet also makes sure all returned urls are unique.
+fn crawl(host: &str, url: String) -> Option<HashSet<String>> {
+    println!("Crawling the shit out of this.");
+    let req = reqwest::get(&url).ok()?;
+	
+    if !req.status().is_success() {
+        return None;
+    }
+
+    let body = req.text().ok()?;
+
+    let dom = Html::
+    println!("Success!");
+    
+
+    // Finds all links in the DOM and filters them based on host name.
+    let mut urls: HashSet<String> = Document::from_read(req).ok()?
+        .find(Name("a"))
+	.filter_map(|n| {
+            println!("This is ok so far");
+	    let link = n.attr("href")?;
+
+            println!("We have a link! {}", link);
+
+            // Checks the hostname to ensure the links are from a single domain.
+	    let link_host = Url::parse(link).ok()?.host_str()?.to_string();
+
+            println!("{} =? {}", host, link_host);
+
+	    if *host != link_host {
+	        return None;
+	    }
+
+            // More checks or sanitazation could be done here, such as stripping query parameters.
+
+	    Some(link.to_string())
+        })
+	.collect();
+
+    urls.insert(url);
+
+    println!("Len {}", urls.len());
+
+    Some(urls)
 }
 
 /// Compares the set of scraped urls against the database, inserts the new ones and returns them.

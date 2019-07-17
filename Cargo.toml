@@ -5,6 +5,7 @@ authors = ["Michael Bausano <michael@joinpouch.com>"]
 edition = "2018"
 
 [dependencies]
+url = "*"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.26" }
 rocket = "0.4.2"

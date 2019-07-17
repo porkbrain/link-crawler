@@ -11,10 +11,11 @@ type Database = Arc<Mutex<HashMap<String, HashSet<String>>>>;
 #[get("/<domain>/url")]
 pub fn list(cache: State<Database>, domain: String) -> Result<Json<Vec<String>>, Status> {
     match cache.lock() {
-        // If lock was aquired, find domain in the list and return all items from the set as
-        // vector or an empty vector if domain was not scraped yet.
+        // If lock was acquired, find domain in the list and return all items from the set as
+        // vector or an empty vector if domain was not crawled yet.
         Ok(db) => {
             let list = match db.get(&domain) {
+                // TODO: Paginate results.
                 Some(set) => set.iter().cloned().collect(),
                 None => vec!(),
             };
@@ -28,7 +29,7 @@ pub fn list(cache: State<Database>, domain: String) -> Result<Json<Vec<String>>,
 #[get("/<domain>/url/count")]
 pub fn count(cache: State<Database>, domain: String) -> Result<Json<UrlCount>, Status> {
     match cache.lock() {
-        // If lock was aquired, find domain and count all urls it has associated with it.
+        // If lock was acquired, find domain and count all urls it has associated with it.
         Ok(db) => {
             let count: usize = match db.get(&domain) {
                 Some(set) => set.len(),
@@ -42,17 +43,21 @@ pub fn count(cache: State<Database>, domain: String) -> Result<Json<UrlCount>, S
 }
 
 #[post("/", data = "<url>")]
-pub fn scrape(producer: State<Mutex<Sender<String>>>, url: String) -> Status {
+pub fn crawl(producer: State<Mutex<Sender<String>>>, url: String) -> Status {
     // TODO: Find a better way of creating a channel without using mutex.
-    // TODO: Handle mutex error.
-    match producer.lock().unwrap().send(url.clone()) {
-        Ok(_) => Status::Accepted,
+    match producer.lock() {
+        Ok(producer) => {
+            match producer.send(url.clone()) {
+                Ok(_) => Status::Accepted,
+                Err(_) => Status::ServiceUnavailable,
+            }
+        },
         Err(_) => Status::ServiceUnavailable,
     }
 }
 
 #[derive(Serialize)]
 pub struct UrlCount {
-    /// How many unique urls has the scraper found for given domain.
+    /// How many unique urls has the crawler found for given domain.
     count: usize
 }

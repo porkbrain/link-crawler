@@ -4,6 +4,9 @@ use scraper::{Html, Selector};
 use std::sync::mpsc::Receiver;
 use std::collections::HashSet;
 
+/// Per one request, the crawler will visit at most N websites.
+const MAX_LINKS_CRAWLED_PER_REQUEST: u32 = 16;
+
 /// Crawler assumes its own thread as it blocks. It listen to consumer channel for url.
 /// It checks the domain and makes a request to it. It collects recursivelly all urls it can
 /// find that belong to the same hostname. These urls are then stored in a HashSet and commited
@@ -36,10 +39,13 @@ pub fn listen(db: Database, consumer: Receiver<String>) {
 /// looking for move unique links. Once it drains all usable links on given hostname, it stops
 /// crawling.
 fn crawl_urls(master: &Database, url: String, host: &str) {
+  let mut counter: u32 = 0;
   let mut queue: Vec<String> = vec!(url);
 
   loop {
-    if queue.len() == 0 {
+    counter += 1;
+
+    if queue.len() == 0 || counter > MAX_LINKS_CRAWLED_PER_REQUEST {
       break;
     }
 
@@ -58,6 +64,9 @@ fn crawl_urls(master: &Database, url: String, host: &str) {
 /// host name. HashSet also makes sure all returned urls are unique.
 fn crawl(host: &str, url: String) -> Option<HashSet<String>> {
   let mut req = reqwest::get(&url).ok()?;
+  // Used to fiddle around with the paths. If a relative path is identified, this
+  // struct gets updated to contain that path and then inserted into the set.
+  let mut url_parsed = Url::parse(&url).ok()?;
 
   if !req.status().is_success() {
     return None;
@@ -70,19 +79,26 @@ fn crawl(host: &str, url: String) -> Option<HashSet<String>> {
   // Finds all links in the DOM and filters them based on host name.
   let mut urls: HashSet<String> = dom.select(&link_selector)
     .filter_map(|node| {
-      let link = node.value().attr("href")?;
+      let link = node.value().attr("href")?.to_string();
 
-      // Checks the hostname to ensure the links are from a single domain.
-      // TODO: If the url starts with forward slash, prepend the host name to it.
-      let link_host = Url::parse(link).ok()?.host_str()?.to_string();
+      // If the URL couldn't be parsed, it was most likely a relative href.
+      match Url::parse(&link) {
+        Ok(link_parsed) => {
+          // Checks the hostname to ensure the links are from a single domain.
+          if *host != link_parsed.host_str()?.to_string() {
+            None
+          } else {
+            Some(link_parsed.as_str().to_string())
+          }
+        },
+        Err(_) => {
+          // The link does not contain hostname (relative href) points to the same
+          // domain and we don't have to check for origin.
+          url_parsed.set_path(&link);
 
-      if *host != link_host {
-        return None;
+          Some(url_parsed.as_str().to_string())
+        }
       }
-
-      // More checks or sanitization could be done here, such as stripping query parameters.
-
-      Some(link.to_string())
     })
     .collect();
 

@@ -1,12 +1,10 @@
 use rocket::State;
+use super::Database;
 use rocket::http::Status;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::sync::mpsc::Sender;
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-
-type Database = Arc<Mutex<HashMap<String, HashSet<String>>>>;
 
 #[get("/<domain>/url")]
 pub fn list(cache: State<Database>, domain: String) -> Result<Json<Vec<String>>, Status> {

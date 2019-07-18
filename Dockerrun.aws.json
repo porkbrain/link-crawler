@@ -16,7 +16,7 @@
   ],
   "containerDefinitions": [
     {
-      "name": "web-crawler",
+      "name": "crawler",
       "image": "rust:1.31",
       "essential": true,
       "memory": 600,

@@ -1,8 +1,9 @@
 [package]
-name = "web-scraper"
+name = "crawler"
 version = "0.1.0"
 authors = ["Michael Bausano <michael@joinpouch.com>"]
 edition = "2018"
+repository = "https://github.com/bausano/link-crawler"
 
 [dependencies]
 reqwest = "0.9.18"

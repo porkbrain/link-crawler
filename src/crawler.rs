@@ -1,10 +1,8 @@
 use url::Url;
-use std::sync::{Arc, Mutex};
+use super::Database;
 use scraper::{Html, Selector};
 use std::sync::mpsc::Receiver;
-use std::collections::{HashMap, HashSet};
-
-type Database = Arc<Mutex<HashMap<String, HashSet<String>>>>;
+use std::collections::HashSet;
 
 /// Crawler assumes its own thread as it blocks. It listen to consumer channel for url.
 /// It checks the domain and makes a request to it. It collects recursivelly all urls it can

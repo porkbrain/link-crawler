@@ -1,4 +1,4 @@
-# Link scraper
+# Link Crawler
 
 A Rust coding challenge project. Runs web server which exposes three endpoints. The web server crawls given domain and caches links it found within the same host name.
 
@@ -7,8 +7,8 @@ A Rust coding challenge project. Runs web server which exposes three endpoints. 
 The provided *Dockerfile* is ready to be deployed to an AWS EC2 (might just need changing the port). However, the app can be run locally too (you might need to change the path in the *Dockerfile*):
 
 ```
-$ docker build -t web-scraper .
-$ docker run -it -p 127.0.0.1:8000:8000 --rm --name web-scraper-instance web-scraper
+$ docker build -t crawler .
+$ docker run -it -p 127.0.0.1:8000:8000 --rm --name crawler-instance crawler
 ```
 
 ## Endpoints

@@ -2,6 +2,8 @@
 
 A Rust coding challenge project. Runs web server which exposes three endpoints. The web server crawls given domain and caches links it found within the same host name.
 
+Tested with `rustc 1.38.0-nightly (07e0c3651 2019-07-16)` and `cargo 1.38.0-nightly (677a180f4 2019-07-08)`. This project will compile only with nightly build. To update to nightly, run `rustup update nightly`.
+
 ## Docker
 
 The provided *Dockerfile* is ready to be deployed to an AWS EC2 (might just need changing the port). However, the app can be run locally too (you might need to change the path in the *Dockerfile*):

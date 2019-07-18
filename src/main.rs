@@ -140,4 +140,7 @@ mod test {
     assert_eq!(response.status(), Status::Accepted);
     receiver_test.join().unwrap();
   }
+
+  // TODO: Test cases for crawler.
+
 }

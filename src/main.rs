@@ -127,7 +127,7 @@ mod test {
 
     let client = Client::new(server(db, producer)).unwrap();
 
-    let receiver_test = thread::spawn(move || {
+    let test_receiver = thread::spawn(move || {
       assert_eq!("https://github.com", consumer.recv().unwrap());
     });
 
@@ -138,7 +138,7 @@ mod test {
       .dispatch();
 
     assert_eq!(response.status(), Status::Accepted);
-    receiver_test.join().unwrap();
+    test_receiver.join().unwrap();
   }
 
   // TODO: Test cases for crawler.
